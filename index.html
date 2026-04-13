@@ -99,7 +99,7 @@
     <div class="card c6"><h3>Credit-Completion Category</h3><div class="h-sub">&gt;50% vs ≤50% of credits completed + registered</div><div id="ch_cat" class="chart chart-sm"></div></div>
     <div class="card c6"><h3>Credit Progress vs IU Match</h3><div class="h-sub">Students grouped into 10% progress bands, stacked by IU-match status</div><div id="ch_hist" class="chart chart-sm"></div></div>
 
-    <div class="card c12"><h3>LIU Campus Distribution</h3><div class="h-sub">Current LIU campus recorded for each student in the file</div><div id="ch_campus" class="chart chart-sm"></div></div>
+    <div class="card c12"><h3>Home Campus × IU Match</h3><div class="h-sub">Students per home campus (the campus they live in / are from), stacked by IU-match status. Sorted by total.</div><div id="ch_campus" class="chart chart-lg"></div></div>
 
     <div class="card c8"><h3>Expected Years to Graduate</h3><div class="h-sub">Distribution from the workbook column</div><div id="ch_yrs" class="chart"></div></div>
     <div class="card c4"><h3>Level</h3><div class="h-sub">Undergraduate vs Graduate</div><div id="ch_level" class="chart"></div></div>
@@ -122,7 +122,7 @@ const CAT_COLORS = {'>50':'#22c55e','=<50':'#f59e0b','Unknown':'#64748b'};
 
 const FILTER_DEFS = [
   {key:'cohort',label:'Cohort'},
-  {key:'campus',label:'LIU Campus (current)'},
+  {key:'campus',label:'Home Campus'},
   {key:'school',label:'School'},
   {key:'level',label:'Level'},
   {key:'match',label:'IU Match'},
@@ -235,13 +235,24 @@ function renderCharts(rows){
     annotations:[{x:4.5,y:1,yref:'paper',text:'50% STAF cutoff',showarrow:false,font:{color:'#f59e0b',size:10},xanchor:'left',xshift:4}]
   },CFG);
 
-  // Campus
+  // Campus stacked by IU match — one combined horizontal chart
   const cm = countBy(rows,'campus');
-  const cmSort = Object.entries(cm).sort((a,b)=>b[1]-a[1]);
-  Plotly.react('ch_campus',[{
-    type:'bar', x:cmSort.map(e=>e[0]), y:cmSort.map(e=>e[1]),
-    marker:{color:'#a78bfa'}
-  }],{...LAYOUT_BASE},CFG);
+  const camps = Object.entries(cm).sort((a,b)=>a[1]-b[1]).map(e=>e[0]);
+  const matchKeysC = Object.keys(MATCH_COLORS);
+  const tracesC = matchKeysC.map(mm=>({
+    type:'bar', orientation:'h', name:mm,
+    y:camps,
+    x:camps.map(c=>rows.filter(d=>d.campus===c&&d.match===mm).length),
+    marker:{color:MATCH_COLORS[mm]}
+  }));
+  Plotly.purge('ch_campus');
+  Plotly.newPlot('ch_campus',tracesC,{
+    ...LAYOUT_BASE, barmode:'stack',
+    margin:{l:120,r:20,t:10,b:60},
+    xaxis:{...LAYOUT_BASE.xaxis,title:'students'},
+    yaxis:{...LAYOUT_BASE.yaxis,type:'category'},
+    legend:{orientation:'h',y:-0.18}
+  },CFG);
 
   // Years to grad
   const yrs = rows.map(d=>d.yrs_to_grad).filter(v=>typeof v==='number');
