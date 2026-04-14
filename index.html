@@ -68,6 +68,17 @@
 
   <h2 class="section-title">Focus Areas — where the friction concentrates</h2>
   <div class="grid">
+    <div class="card c12 focus-bad">
+      <h3>🚨 First-Year, Major Not in IU</h3>
+      <div class="h-sub" id="focus_fy_sub"></div>
+      <div class="focus-row">
+        <div class="focus-mini"><div class="focus-l">By school</div><div id="focus_fy_school" class="chart chart-mini"></div></div>
+        <div class="focus-mini"><div class="focus-l">By campus</div><div id="focus_fy_campus" class="chart chart-mini"></div></div>
+      </div>
+      <div class="focus-l" style="margin-top:10px">Top affected majors</div>
+      <div class="scroll" style="max-height:200px"><table id="tbl_fy"><thead><tr><th>School</th><th>Major</th><th>Title</th><th class="num">Students</th></tr></thead><tbody></tbody></table></div>
+    </div>
+
     <div class="card c6 focus-bad">
       <h3>🚫 Major not in IU</h3>
       <div class="h-sub" id="focus_nonc_sub"></div>
@@ -288,6 +299,38 @@ function renderTable(rows){
   </tr>`).join('');
 }
 
+function renderFocusFirstYear(rows){
+  const total = rows.length;
+  const fy = rows.filter(d=>d.completed<24 && d.match==="Doesn't exist in IU");
+  document.getElementById('focus_fy_sub').innerHTML =
+    `<strong>${fy.length}</strong> students (${pct(fy.length,total)} of filtered) are first-year (&lt; 24 credits completed) with a major that doesn't exist at IU.`;
+
+  const fyBySchool = countBy(fy,'school');
+  const fss = Object.entries(fyBySchool).sort((a,b)=>b[1]-a[1]);
+  Plotly.react('focus_fy_school',[{
+    type:'bar', x:fss.map(e=>e[0]), y:fss.map(e=>e[1]), marker:{color:'#dc2626'},
+    text:fss.map(e=>e[1]), textposition:'outside'
+  }],{...LAYOUT_BASE,margin:{l:36,r:8,t:14,b:30}},CFG);
+
+  const fyByCampus = countBy(fy,'campus');
+  const fcs = Object.entries(fyByCampus).sort((a,b)=>b[1]-a[1]);
+  Plotly.react('focus_fy_campus',[{
+    type:'bar', x:fcs.map(e=>e[0]), y:fcs.map(e=>e[1]), marker:{color:'#dc2626'},
+    text:fcs.map(e=>e[1]), textposition:'outside'
+  }],{...LAYOUT_BASE,margin:{l:36,r:8,t:14,b:30}},CFG);
+
+  const fyByMajor = {};
+  fy.forEach(d=>{
+    const k = d.school+'|'+d.major;
+    if(!fyByMajor[k]) fyByMajor[k]={school:d.school,major:d.major,title:d.title,n:0};
+    fyByMajor[k].n++;
+  });
+  const fyMSorted = Object.values(fyByMajor).sort((a,b)=>b.n-a.n);
+  document.querySelector('#tbl_fy tbody').innerHTML = fyMSorted.length
+    ? fyMSorted.map(r=>`<tr><td>${r.school}</td><td>${r.major}</td><td>${r.title||''}</td><td class="num"><strong>${r.n}</strong></td></tr>`).join('')
+    : '<tr><td colspan="4" style="text-align:center;color:#64748b;padding:14px">None in current filter.</td></tr>';
+}
+
 function renderFocus(rows){
   const total = rows.length;
   // ---- Non-compliant (Major not in IU) ----
@@ -354,6 +397,7 @@ function renderFocus(rows){
 function render(){
   const rows = filtered();
   renderKPIs(rows);
+  renderFocusFirstYear(rows);
   renderFocus(rows);
   renderCharts(rows);
   renderTable(rows);
